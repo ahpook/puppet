@@ -2,10 +2,9 @@
 
 Puppet::Face.define(:module, '1.0.0') do
   action(:install) do
-    summary "Install a module from a repository or release archive."
+    summary "Install a module from the Puppet Forge or a release archive."
     description <<-EOT
-      Installs a module from the Puppet Forge, from a release archive file
-      on-disk, or from a private Forge-like repository.
+      Installs a module from the Puppet Forge or from a release archive file.
 
       The specified module will be installed into the directory
       specified with the `--target-dir` option, which defaults to
@@ -149,6 +148,7 @@ Puppet::Face.define(:module, '1.0.0') do
     when_invoked do |name, options|
       sep = File::PATH_SEPARATOR
       if options[:target_dir]
+        options[:target_dir] = File.expand_path(options[:target_dir])
         options[:modulepath] = "#{options[:target_dir]}#{sep}#{options[:modulepath]}"
       end
 

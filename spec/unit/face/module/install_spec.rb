@@ -3,6 +3,7 @@ require 'puppet/face'
 require 'puppet/module_tool'
 
 describe "puppet module install" do
+  include PuppetSpec::Files
 
   subject { Puppet::Face[:module, :current] }
 
@@ -24,10 +25,10 @@ describe "puppet module install" do
     end
 
     let(:sep) { File::PATH_SEPARATOR }
-    let(:fakefirstpath)  { "/my/fake/modpath" }
-    let(:fakesecondpath) { "/other/fake/path" }
+    let(:fakefirstpath)  { make_absolute("/my/fake/modpath") }
+    let(:fakesecondpath) { make_absolute("/other/fake/path") }
     let(:fakemodpath)    { "#{fakefirstpath}#{sep}#{fakesecondpath}" }
-    let(:fakedirpath)    { "/my/fake/path" }
+    let(:fakedirpath)    { make_absolute("/my/fake/path") }
 
     context "without any options" do
       it "should require a name" do
@@ -49,7 +50,7 @@ describe "puppet module install" do
     end
 
     it "should accept the --target-dir option" do
-      options[:target_dir] = "/foo/puppet/modules"
+      options[:target_dir] = make_absolute("/foo/puppet/modules")
       expected_options.merge!(options)
       expected_options[:modulepath] = "#{options[:target_dir]}#{sep}#{fakemodpath}"
 
@@ -90,6 +91,17 @@ describe "puppet module install" do
       end
 
       describe "when target-dir option is passed" do
+        it "should expand the target directory" do
+          options[:target_dir] = "modules"
+          expanded_path = File.expand_path("modules")
+          expected_options.merge!(options)
+          expected_options[:target_dir] = expanded_path
+          expected_options[:modulepath] = "#{expanded_path}#{sep}#{fakemodpath}"
+
+          Puppet::ModuleTool::Applications::Installer.expects(:run).with("puppetlabs-apache", expected_options).once
+          subject.install("puppetlabs-apache", options)
+        end
+
         it "should set target-dir to be first path of modulepath" do
           options[:target_dir] = fakedirpath
           expected_options[:target_dir] = fakedirpath
