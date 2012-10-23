@@ -17,7 +17,7 @@ Puppet::Type.type(:package).provide :portage, :parent => Puppet::Provider::Packa
     result_fields = [:category, :name, :ensure, :version_available, :vendor, :description]
 
     version_format = "{last}<version>{}"
-    search_format = "<category> <name> [<installedversions:LASTVERSION>] [<bestversion:LASTVERSION>] <homepage> <description>\n"
+    search_format = "'<category> <name> [<installedversions:LASTVERSION>] [<bestversion:LASTVERSION>] <homepage> <description>\\n'"
 
     begin
       eix_file = File.directory?("/var/cache/eix") ? "/var/cache/eix/portage.eix" : "/var/cache/eix"
