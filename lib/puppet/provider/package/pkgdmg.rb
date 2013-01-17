@@ -26,6 +26,42 @@ Puppet::Type.type(:package).provide :pkgdmg, :parent => Puppet::Provider::Packag
   commands :hdiutil => "/usr/bin/hdiutil"
   commands :curl => "/usr/bin/curl"
 
+  # Read HTTP proxy configurationm from Puppet's config file, or the
+  # http_proxy environment variable - non-DRY dup of puppet/forge/repository.rb
+  def self.http_proxy_env
+    proxy_env = ENV["http_proxy"] || ENV["HTTP_PROXY"] || nil
+    begin
+      return URI.parse(proxy_env) if proxy_env
+    rescue URI::InvalidURIError
+      return nil
+    end
+    return nil
+  end
+
+  def self.http_proxy_host
+    env = http_proxy_env
+
+    if env and env.host then
+      return env.host
+    end
+
+    if Puppet.settings[:http_proxy_host] == 'none'
+      return nil
+    end
+
+    return Puppet.settings[:http_proxy_host]
+  end
+
+  def self.http_proxy_port
+    env = http_proxy_env
+
+    if env and env.port then
+      return env.port
+    end
+
+    return Puppet.settings[:http_proxy_port]
+  end
+
   # JJM We store a cookie for each installed .pkg.dmg in /var/db
   def self.instance_by_name
     Dir.entries("/var/db").find_all { |f|
@@ -62,11 +98,19 @@ Puppet::Type.type(:package).provide :pkgdmg, :parent => Puppet::Provider::Packag
     begin
       if %r{\A[A-Za-z][A-Za-z0-9+\-\.]*://} =~ cached_source
         cached_source = File.join(tmpdir, name)
+        args = [ "-o", cached_source, "-C", "-", "-k", "-L", "-s", "--url", source ]
+
+        if http_proxy_host and http_proxy_port
+          args << "--proxy" << "#{http_proxy_host}:#{http_proxy_port}"
+        elsif http_proxy_host and not http_proxy_port
+          args << "--proxy" << http_proxy_host
+        end
+
         begin
-          curl "-o", cached_source, "-C", "-", "-k", "-L", "-s", "--url", source
-          Puppet.debug "Success: curl transfered [#{name}]"
+          curl *args
+          Puppet.debug "Success: curl transfered [#{name}] (via: curl #{args.join(" ")})"
         rescue Puppet::ExecutionFailure
-          Puppet.debug "curl did not transfer [#{name}].  Falling back to slower open-uri transfer methods."
+          Puppet.debug "curl #{args.join(" ")} did not transfer [#{name}].  Falling back to slower open-uri transfer methods."
           cached_source = source
         end
       end
